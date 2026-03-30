@@ -117,16 +117,16 @@
                             {% for cat, icon, color in cats %}
                             <tr class="border-b border-white/5">
                                 <td class="py-2">{{ icon }} {{ cat.replace('Pass','').replace('One','One ') }}</td>
-                                <td class="text-center py-2 font-medium">{{ data.stats['Lunch'].get(cat, 0) }}</td>
-                                <td class="text-center py-2 font-medium">{{ data.stats['Dinner'].get(cat, 0) }}</td>
-                                <td class="text-center py-2 font-medium">{{ data.stats['Lunch'].get(cat, 0) + data.stats['Dinner'].get(cat, 0) }}</td>
+                                <td class="text-center py-2 font-medium" id="tbl-lunch-{{ cat }}">{{ data.stats['Lunch'].get(cat, 0) }}</td>
+                                <td class="text-center py-2 font-medium" id="tbl-dinner-{{ cat }}">{{ data.stats['Dinner'].get(cat, 0) }}</td>
+                                <td class="text-center py-2 font-medium" id="tbl-both-{{ cat }}">{{ data.stats['Lunch'].get(cat, 0) + data.stats['Dinner'].get(cat, 0) }}</td>
                             </tr>
                             {% endfor %}
                             <tr class="font-bold text-[#e94560]">
                                 <td class="py-2">Total</td>
-                                <td class="text-center py-2">{{ data.stats['Lunch']['Total'] }}</td>
-                                <td class="text-center py-2">{{ data.stats['Dinner']['Total'] }}</td>
-                                <td class="text-center py-2">{{ data.stats['Lunch']['Total'] + data.stats['Dinner']['Total'] }}</td>
+                                <td class="text-center py-2" id="tbl-lunch-Total">{{ data.stats['Lunch']['Total'] }}</td>
+                                <td class="text-center py-2" id="tbl-dinner-Total">{{ data.stats['Dinner']['Total'] }}</td>
+                                <td class="text-center py-2" id="tbl-both-Total">{{ data.stats['Lunch']['Total'] + data.stats['Dinner']['Total'] }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -143,10 +143,14 @@
 
 {% block scripts %}
 <script>
+const CATS = ['Hostel','OneTime','StudentPass','FacultyPass','SpecialGuest'];
+
 // Clock
 function updateClock() {
     const now = new Date();
-    document.getElementById('clock').textContent = now.toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'}) + ' • ' + now.toLocaleTimeString('en-IN');
+    document.getElementById('clock').textContent =
+        now.toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'})
+        + ' • ' + now.toLocaleTimeString('en-IN');
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -156,10 +160,48 @@ function showToast(msg, success=true) {
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.className = `fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-2xl font-medium text-sm z-50 ${success ? 'bg-green-600' : 'bg-red-600'}`;
-    setTimeout(() => t.classList.add('hidden'), 3000);
+    t.classList.remove('hidden');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.add('hidden'), 3000);
 }
 
-// Manual count
+// Update ALL stats on dashboard from API response
+function updateStats(d) {
+    const meal = d.current_meal;
+    const stats = d.stats;
+
+    // Current meal cards (top row)
+    const cur = meal !== 'Closed' ? stats[meal] : stats['Lunch'];
+    CATS.forEach(cat => {
+        const el = document.getElementById('stat-cur-' + cat);
+        if (el) el.textContent = cur[cat] || 0;
+    });
+    const totalEl = document.getElementById('stat-cur-Total');
+    if (totalEl) totalEl.textContent = cur['Total'] || 0;
+
+    // Summary table (lunch / dinner / both)
+    CATS.forEach(cat => {
+        const l = document.getElementById('tbl-lunch-' + cat);
+        const di = document.getElementById('tbl-dinner-' + cat);
+        const b = document.getElementById('tbl-both-' + cat);
+        if (l) l.textContent = stats['Lunch'][cat] || 0;
+        if (di) di.textContent = stats['Dinner'][cat] || 0;
+        if (b) b.textContent = (stats['Lunch'][cat] || 0) + (stats['Dinner'][cat] || 0);
+    });
+    const lt = document.getElementById('tbl-lunch-Total');
+    const dt = document.getElementById('tbl-dinner-Total');
+    const bt = document.getElementById('tbl-both-Total');
+    if (lt) lt.textContent = stats['Lunch']['Total'] || 0;
+    if (dt) dt.textContent = stats['Dinner']['Total'] || 0;
+    if (bt) bt.textContent = (stats['Lunch']['Total'] || 0) + (stats['Dinner']['Total'] || 0);
+
+    // Cash
+    document.getElementById('cash-pass').textContent = '₹' + Math.round(d.pass_cash);
+    document.getElementById('cash-ot').textContent = '₹' + Math.round(d.ot_cash);
+    document.getElementById('cash-total').textContent = '₹' + Math.round(d.total_cash);
+}
+
+// Manual count — updates dashboard immediately
 function manualCount(category) {
     fetch('/staff/manual_count', {
         method: 'POST',
@@ -168,16 +210,23 @@ function manualCount(category) {
     })
     .then(r => r.json())
     .then(d => {
-        if (d.success) showToast(`✓ ${category} count added`);
-        else showToast(d.message, false);
+        if (d.success) {
+            showToast('✓ ' + category + ' added');
+            updateStats(d.data);
+        } else {
+            showToast(d.message, false);
+        }
     });
 }
 
-// Undo
+// Undo — updates dashboard immediately
 function undoLast() {
     fetch('/staff/undo', { method: 'POST' })
     .then(r => r.json())
-    .then(d => showToast(d.message, d.success));
+    .then(d => {
+        showToast(d.message, d.success);
+        if (d.success && d.data) updateStats(d.data);
+    });
 }
 
 // Keyboard shortcuts
@@ -185,15 +234,12 @@ document.addEventListener('keydown', e => {
     if (e.key === 'F3') { e.preventDefault(); manualCount('Hostel'); }
     if (e.key === 'F7') { e.preventDefault(); manualCount('SpecialGuest'); }
     if (e.key === 'F9') { e.preventDefault(); manualCount('OneTime'); }
+    if (e.key === 'F12') { e.preventDefault(); undoLast(); }
 });
 
-// Auto refresh stats every 30 seconds
+// Auto refresh every 30 seconds (background sync)
 setInterval(() => {
-    fetch('/staff/stats').then(r => r.json()).then(d => {
-        document.getElementById('cash-pass').textContent = '₹' + Math.round(d.pass_cash);
-        document.getElementById('cash-ot').textContent = '₹' + Math.round(d.ot_cash);
-        document.getElementById('cash-total').textContent = '₹' + Math.round(d.total_cash);
-    });
+    fetch('/staff/stats').then(r => r.json()).then(updateStats);
 }, 30000);
 </script>
 {% endblock %}

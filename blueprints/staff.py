@@ -251,30 +251,45 @@ def allow_meal(user_id):
 @staff_bp.route('/undo', methods=['POST'])
 @staff_required
 def undo():
-    """Undo last meal action"""
-    last_log = PassUsageLog.query.filter_by(
-        date=today_ist()
-    ).order_by(PassUsageLog.id.desc()).first()
+    """Undo last MANUAL count only (F3/F7/F9) - not pass meals"""
+    today = today_ist()
+    meal = get_current_meal()
 
-    if not last_log:
+    if meal == 'Closed':
+        return jsonify({'success': False, 'message': 'Mess is closed'})
+
+    # Find last manual category with count > 0, pick highest id
+    manual_categories = ['Hostel', 'OneTime', 'SpecialGuest']
+    last_record = None
+    for cat in manual_categories:
+        record = MealCount.query.filter_by(
+            entry_date=today, meal_type=meal, category=cat
+        ).first()
+        if record and record.count > 0:
+            if last_record is None or record.id > last_record.id:
+                last_record = record
+
+    if not last_record:
         return jsonify({'success': False, 'message': 'Nothing to undo'})
 
-    # Restore slots
-    p = Pass.query.get(last_log.pass_id)
-    if p:
-        p.used_slots -= last_log.slots_used
-        if p.status == 'Expired' and p.used_slots < p.total_slots:
-            p.status = 'Active'
+    last_record.count -= 1
 
-    # Undo meal count
-    user = User.query.get(last_log.user_id)
-    category = 'StudentPass' if user.user_type == 'student' else 'FacultyPass'
-    update_meal_count(last_log.date, last_log.meal_type, category, increment=-1)
+    # If OneTime, also remove last cash entry
+    if last_record.category == 'OneTime':
+        last_ot = OneTimeCollection.query.filter_by(
+            date=today, meal_type=meal
+        ).order_by(OneTimeCollection.id.desc()).first()
+        if last_ot:
+            db.session.delete(last_ot)
 
-    db.session.delete(last_log)
     db.session.commit()
 
-    return jsonify({'success': True, 'message': 'Last action undone'})
+    data = get_today_stats()
+    return jsonify({
+        'success': True,
+        'message': f'Undone: {last_record.category} count removed',
+        'data': data
+    })
 
 @staff_bp.route('/manual_count', methods=['POST'])
 @staff_required
