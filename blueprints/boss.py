@@ -4,7 +4,13 @@ from models import db, User, Pass, PassUsageLog, MealCount, OneTimeCollection, S
 from datetime import datetime, date
 from functools import wraps
 from sqlalchemy import func
+from zoneinfo import ZoneInfo
 import io
+
+IST = ZoneInfo("Asia/Kolkata")
+
+def today_ist():
+    return datetime.now(IST).date()
 
 boss_bp = Blueprint('boss', __name__)
 
@@ -40,7 +46,7 @@ def settings():
 @boss_bp.route('/analysis/daily')
 @boss_required
 def analysis_daily():
-    selected = request.args.get('date', date.today().isoformat())
+    selected = request.args.get('date', today_ist().isoformat())
     sel_date = datetime.strptime(selected, '%Y-%m-%d').date()
 
     categories = ['Hostel', 'OneTime', 'StudentPass', 'FacultyPass', 'SpecialGuest']
@@ -86,8 +92,8 @@ def analysis_daily():
 @boss_bp.route('/analysis/range')
 @boss_required
 def analysis_range():
-    from_str = request.args.get('from', date.today().replace(day=1).isoformat())
-    to_str = request.args.get('to', date.today().isoformat())
+    from_str = request.args.get('from', today_ist().replace(day=1).isoformat())
+    to_str = request.args.get('to', today_ist().isoformat())
     meal_filter = request.args.get('meal', 'All')
 
     from_date = datetime.strptime(from_str, '%Y-%m-%d').date()
@@ -133,8 +139,8 @@ def analysis_range():
 @boss_bp.route('/analysis/monthly')
 @boss_required
 def analysis_monthly():
-    month = int(request.args.get('month', date.today().month))
-    year = int(request.args.get('year', date.today().year))
+    month = int(request.args.get('month', today_ist().month))
+    year = int(request.args.get('year', today_ist().year))
 
     rows = db.session.query(
         MealCount.entry_date,
@@ -180,8 +186,8 @@ def analysis_monthly():
 @boss_required
 def export_monthly():
     import openpyxl
-    month = int(request.args.get('month', date.today().month))
-    year = int(request.args.get('year', date.today().year))
+    month = int(request.args.get('month', today_ist().month))
+    year = int(request.args.get('year', today_ist().year))
 
     rows = db.session.query(
         MealCount.entry_date,

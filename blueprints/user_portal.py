@@ -1,8 +1,14 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from models import db, User, Pass, PassUsageLog
-from datetime import date
+from datetime import date, datetime
 from functools import wraps
+from zoneinfo import ZoneInfo
+
+IST = ZoneInfo("Asia/Kolkata")
+
+def today_ist():
+    return datetime.now(IST).date()
 
 user_bp = Blueprint('user', __name__)
 
@@ -21,7 +27,7 @@ def dashboard():
 
     # Expire old passes
     for p in user.passes:
-        if p.status == 'Active' and (p.end_date < date.today() or p.used_slots >= p.total_slots):
+        if p.status == 'Active' and (p.end_date < today_ist() or p.used_slots >= p.total_slots):
             p.status = 'Expired'
     db.session.commit()
 
@@ -33,7 +39,7 @@ def dashboard():
     if active_pass:
         remaining = active_pass.total_slots - active_pass.used_slots
         from datetime import timedelta
-        days_left = (active_pass.end_date - date.today()).days
+        days_left = (active_pass.end_date - today_ist()).days
         if remaining <= 5:
             alert = f'Only {remaining} meals remaining on your pass!'
         elif days_left <= 5:

@@ -3,6 +3,17 @@ from flask_login import login_required, current_user
 from models import db, User, Pass, PassUsageLog, MealCount, OneTimeCollection, SystemSettings
 from datetime import datetime, date, time
 from functools import wraps
+from zoneinfo import ZoneInfo
+
+IST = ZoneInfo("Asia/Kolkata")
+
+def now_ist():
+    """Current datetime in IST"""
+    return datetime.now(IST)
+
+def today_ist():
+    """Current date in IST"""
+    return datetime.now(IST).date()
 
 staff_bp = Blueprint('staff', __name__)
 
@@ -16,12 +27,12 @@ def staff_required(f):
 
 def get_current_meal():
     settings = SystemSettings.query.first()
-    now = datetime.now().time()
-    
-    def parse(t): 
+    now = now_ist().time()  # IST time
+
+    def parse(t):
         h, m = map(int, t.split(':'))
         return time(h, m)
-    
+
     if parse(settings.lunch_start) <= now <= parse(settings.lunch_end):
         return 'Lunch'
     if parse(settings.dinner_start) <= now <= parse(settings.dinner_end):
@@ -47,7 +58,7 @@ def update_meal_count(entry_date, meal_type, category, increment=1):
     db.session.commit()
 
 def get_today_stats():
-    today = date.today()
+    today = today_ist()
     meal = get_current_meal()
     categories = ['Hostel', 'OneTime', 'StudentPass', 'FacultyPass', 'SpecialGuest']
     
@@ -97,7 +108,7 @@ def api_user(user_id):
         return jsonify({'found': False, 'message': 'User not found'})
 
     for p in user.passes:
-        if p.status == 'Active' and (p.end_date < date.today() or p.used_slots >= p.total_slots):
+        if p.status == 'Active' and (p.end_date < today_ist() or p.used_slots >= p.total_slots):
             p.status = 'Expired'
     db.session.commit()
 
@@ -108,7 +119,7 @@ def api_user(user_id):
     if active_pass:
         remaining = active_pass.total_slots - active_pass.used_slots
         already_used = PassUsageLog.query.filter_by(
-            user_id=user.id, date=date.today(), meal_type=meal
+            user_id=user.id, date=today_ist(), meal_type=meal
         ).first() if meal != 'Closed' else None
 
         pass_data = {
@@ -160,7 +171,7 @@ def search():
     if user:
         # Expire old passes
         for p in user.passes:
-            if p.status == 'Active' and (p.end_date < date.today() or p.used_slots >= p.total_slots):
+            if p.status == 'Active' and (p.end_date < today_ist() or p.used_slots >= p.total_slots):
                 p.status = 'Expired'
         db.session.commit()
 
@@ -184,7 +195,7 @@ def allow_meal(user_id):
     if not active_pass:
         return jsonify({'success': False, 'message': 'No active pass found'})
 
-    today = date.today()
+    today = today_ist()
 
     # Check pass type
     if active_pass.pass_type == 'Lunch' and meal != 'Lunch':
@@ -215,7 +226,7 @@ def allow_meal(user_id):
         date=today,
         meal_type=meal,
         slots_used=slots,
-        entry_time=datetime.now().time(),
+        entry_time=now_ist().time(),
         admin_id=current_user.id
     )
     db.session.add(log)
@@ -242,7 +253,7 @@ def allow_meal(user_id):
 def undo():
     """Undo last meal action"""
     last_log = PassUsageLog.query.filter_by(
-        date=date.today()
+        date=today_ist()
     ).order_by(PassUsageLog.id.desc()).first()
 
     if not last_log:
@@ -274,7 +285,7 @@ def manual_count():
     if meal == 'Closed':
         return jsonify({'success': False, 'message': 'Mess is closed'})
 
-    today = date.today()
+    today = today_ist()
     update_meal_count(today, meal, category)
 
     if category == 'OneTime':
@@ -388,4 +399,4 @@ def add_pass(user_id):
         return redirect(url_for('staff.search') + f'?uid={user_id}')
 
     from datetime import date
-    return render_template('staff/add_pass.html', user=user, settings=settings, today=date.today().isoformat())
+    return render_template('staff/add_pass.html', user=user, settings=settings, today=today_ist().isoformat())
