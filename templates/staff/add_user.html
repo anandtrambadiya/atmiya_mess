@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Add User{% endblock %}
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Add New User</h1>
+    <form method="POST" class="bg-[#16213e] rounded-2xl p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+                <label class="text-sm text-white/60 mb-1 block">Full Name *</label>
+                <input name="name" required class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]">
+            </div>
+            <div>
+                <label class="text-sm text-white/60 mb-1 block">User Type *</label>
+                <select name="user_type" required class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none">
+                    <option value="student">Student</option>
+                    <option value="faculty">Faculty</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-white/60 mb-1 block">Mobile *</label>
+                <input name="mobile" required type="tel" class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]">
+            </div>
+            <div>
+                <label class="text-sm text-white/60 mb-1 block">Branch</label>
+                <input name="branch" class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]">
+            </div>
+            <div>
+                <label class="text-sm text-white/60 mb-1 block">Semester</label>
+                <input name="sem" class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]">
+            </div>
+            <div class="col-span-2">
+                <label class="text-sm text-white/60 mb-1 block">Institute</label>
+                <input name="institute" class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]">
+            </div>
+        </div>
+        <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="create_pass" value="yes" class="w-4 h-4">
+            <span class="text-sm text-white/60">Create pass immediately after adding</span>
+        </label>
+        <button type="submit" class="w-full bg-[#e94560] hover:bg-[#c73652] py-3 rounded-xl font-semibold">Add User</button>
+    </form>
+</div>
+{% endblock %}

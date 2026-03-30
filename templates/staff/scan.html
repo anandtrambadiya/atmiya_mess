@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+{% block title %}QR Scanner — Atmiya Mess{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+    #scanner-box {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+        aspect-ratio: 1;
+        overflow: hidden;
+        border-radius: 16px;
+        background: #000;
+    }
+    #video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    #canvas { display: none; }
+
+    /* Scanning frame overlay */
+    .scan-frame {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+    .scan-frame::before {
+        content: '';
+        width: 65%;
+        aspect-ratio: 1;
+        border: 2px solid rgba(255,255,255,0.8);
+        border-radius: 12px;
+        box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+    }
+
+    /* Corner markers */
+    .corner {
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-color: #e94560;
+        border-style: solid;
+    }
+    .tl { top: 17.5%; left: 17.5%; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .tr { top: 17.5%; right: 17.5%; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .bl { bottom: 17.5%; left: 17.5%; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .br { bottom: 17.5%; right: 17.5%; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+    /* Scan line animation */
+    .scan-line {
+        position: absolute;
+        left: 17.5%;
+        right: 17.5%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #e94560, transparent);
+        animation: scanMove 2s ease-in-out infinite;
+        top: 20%;
+    }
+    @keyframes scanMove {
+        0%   { top: 20%; opacity: 1; }
+        45%  { opacity: 1; }
+        50%  { top: 78%; opacity: 0.3; }
+        55%  { opacity: 1; }
+        100% { top: 20%; opacity: 1; }
+    }
+
+    /* Result panel slide up */
+    #result-panel {
+        transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.3s;
+    }
+    #result-panel.hidden-panel {
+        transform: translateY(40px);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* Pulse on success */
+    @keyframes pulse-green {
+        0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
+        70%  { box-shadow: 0 0 0 16px rgba(34,197,94,0); }
+        100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    }
+    .pulse-green { animation: pulse-green 0.6s ease; }
+
+    @keyframes pulse-red {
+        0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
+        70%  { box-shadow: 0 0 0 16px rgba(239,68,68,0); }
+        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+    }
+    .pulse-red { animation: pulse-red 0.6s ease; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto flex flex-col items-center gap-5">
+
+    <!-- Header -->
+    <div class="w-full flex items-center justify-between">
+        <h1 class="text-xl font-bold">QR Scanner</h1>
+        <div class="flex items-center gap-2">
+            <span id="meal-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/50">
+                Loading...
+            </span>
+            <a href="{{ url_for('staff.search') }}" class="text-sm text-white/40 hover:text-white">Manual →</a>
+        </div>
+    </div>
+
+    <!-- Camera Box -->
+    <div id="scanner-box">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <div class="scan-frame"></div>
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="scan-line" id="scan-line"></div>
+
+        <!-- Camera status overlay -->
+        <div id="cam-status" class="absolute inset-0 flex items-center justify-center bg-black/80 text-center p-6">
+            <div>
+                <div class="text-4xl mb-3">📷</div>
+                <p class="text-sm text-white/70 mb-4">Camera permission needed</p>
+                <button onclick="startCamera()" class="bg-[#e94560] hover:bg-[#c73652] px-5 py-2 rounded-xl text-sm font-semibold">
+                    Enable Camera
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status text -->
+    <p id="status-text" class="text-sm text-white/40">Point camera at user's QR code</p>
+
+    <!-- Result Panel -->
+    <div id="result-panel" class="w-full hidden-panel">
+
+        <!-- User Info Card -->
+        <div id="user-card" class="bg-[#16213e] rounded-2xl p-5 mb-3">
+            <div class="flex items-center gap-4 mb-4">
+                <div id="user-avatar" class="w-12 h-12 rounded-full bg-[#e94560]/20 flex items-center justify-center text-xl font-bold text-[#e94560]"></div>
+                <div>
+                    <div id="user-name" class="font-bold text-lg"></div>
+                    <div id="user-meta" class="text-white/40 text-sm"></div>
+                </div>
+                <div id="pass-status-badge" class="ml-auto text-xs px-3 py-1 rounded-full font-semibold"></div>
+            </div>
+
+            <!-- Pass details -->
+            <div id="pass-details" class="hidden">
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="bg-[#0f3460] rounded-xl p-3 text-center">
+                        <div id="pass-type" class="font-bold text-sm"></div>
+                        <div class="text-xs text-white/40 mt-0.5">Type</div>
+                    </div>
+                    <div class="bg-[#0f3460] rounded-xl p-3 text-center">
+                        <div id="pass-remaining" class="font-bold text-lg"></div>
+                        <div class="text-xs text-white/40 mt-0.5">Left</div>
+                    </div>
+                    <div class="bg-[#0f3460] rounded-xl p-3 text-center">
+                        <div id="pass-expiry" class="font-bold text-sm"></div>
+                        <div class="text-xs text-white/40 mt-0.5">Expires</div>
+                    </div>
+                </div>
+
+                <!-- Slot progress bar -->
+                <div class="mb-4">
+                    <div class="bg-white/10 rounded-full h-2">
+                        <div id="pass-bar" class="h-2 rounded-full transition-all"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning messages -->
+            <div id="warn-box" class="hidden bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3 mb-4 text-sm text-yellow-300"></div>
+
+            <!-- Action buttons -->
+            <div id="action-buttons" class="flex gap-3">
+                <button id="allow-btn" onclick="allowMeal()"
+                    class="flex-1 bg-green-500 hover:bg-green-600 active:scale-95 py-4 rounded-xl font-bold text-lg transition-all">
+                    ✓ ALLOW
+                </button>
+                <button onclick="resetScanner()"
+                    class="flex-1 bg-white/5 hover:bg-white/10 active:scale-95 py-4 rounded-xl font-bold transition-all border border-white/10">
+                    ✗ DENY
+                </button>
+            </div>
+
+            <!-- No pass actions -->
+            <div id="no-pass-actions" class="hidden text-center">
+                <p class="text-white/40 text-sm mb-3">No active pass</p>
+                <div class="flex gap-2 justify-center">
+                    <a id="add-pass-link" href="#" class="bg-[#e94560] hover:bg-[#c73652] px-4 py-2 rounded-xl text-sm font-semibold">Add Pass</a>
+                    <button onclick="resetScanner()" class="bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl text-sm">Dismiss</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scan again button -->
+        <button onclick="resetScanner()"
+            class="w-full bg-white/5 hover:bg-white/10 border border-white/10 py-3 rounded-xl text-sm font-medium transition-all">
+            📷 Scan Another
+        </button>
+    </div>
+
+    <!-- Manual ID fallback -->
+    <div class="w-full">
+        <form onsubmit="manualLookup(event)" class="flex gap-2">
+            <input type="number" id="manual-id" placeholder="Or type User ID manually"
+                class="flex-1 bg-[#16213e] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]">
+            <button type="submit" class="bg-[#16213e] hover:bg-[#1e2d4e] border border-white/10 px-4 py-3 rounded-xl text-sm">Go</button>
+        </form>
+    </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl font-medium text-sm z-50 whitespace-nowrap"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let video = document.getElementById('video');
+let canvas = document.getElementById('canvas');
+let ctx = canvas.getContext('2d', { willReadFrequently: true });
+let scanning = true;
+let lastScanned = null;
+let currentUserId = null;
+let currentPassId = null;
+let animFrame = null;
+
+// ── Camera ────────────────────────────────────────
+async function startCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } }
+        });
+        video.srcObject = stream;
+        video.addEventListener('loadedmetadata', () => {
+            document.getElementById('cam-status').style.display = 'none';
+            video.play();
+            requestAnimationFrame(tick);
+            loadMealBadge();
+        });
+    } catch(err) {
+        document.getElementById('cam-status').innerHTML = `
+            <div class="text-center p-6">
+                <div class="text-4xl mb-3">🚫</div>
+                <p class="text-sm text-red-400 mb-3">Camera access denied</p>
+                <p class="text-xs text-white/40">Use the manual ID field below</p>
+            </div>`;
+    }
+}
+
+// ── QR Scan Loop ──────────────────────────────────
+function tick() {
+    if (!scanning) { animFrame = requestAnimationFrame(tick); return; }
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert'
+        });
+
+        if (code) {
+            const val = code.data.trim();
+            if (val !== lastScanned && /^\d+$/.test(val)) {
+                lastScanned = val;
+                scanning = false;
+                document.getElementById('scan-line').style.animationPlayState = 'paused';
+                lookupUser(parseInt(val));
+            }
+        }
+    }
+    animFrame = requestAnimationFrame(tick);
+}
+
+// ── User Lookup ───────────────────────────────────
+async function lookupUser(userId) {
+    setStatus('Looking up user...', 'white');
+    try {
+        const res = await fetch(`/staff/api/user/${userId}`);
+        const data = await res.json();
+
+        if (!data.found) {
+            setStatus('❌ User not found', 'red');
+            showToast('User not found', false);
+            setTimeout(resetScanner, 2000);
+            return;
+        }
+
+        showResult(data);
+    } catch(e) {
+        setStatus('Network error', 'red');
+        setTimeout(resetScanner, 2000);
+    }
+}
+
+function showResult(data) {
+    currentUserId = data.user.id;
+    const u = data.user;
+    const p = data.active_pass;
+    const meal = data.current_meal;
+
+    // Avatar
+    document.getElementById('user-avatar').textContent = u.name.charAt(0).toUpperCase();
+    document.getElementById('user-name').textContent = u.name;
+    document.getElementById('user-meta').textContent = `ID: ${u.id} • ${u.user_type}${u.branch ? ' • ' + u.branch : ''}`;
+
+    const warnBox = document.getElementById('warn-box');
+    const actionBtns = document.getElementById('action-buttons');
+    const noPassActions = document.getElementById('no-pass-actions');
+    const passDetails = document.getElementById('pass-details');
+    const allowBtn = document.getElementById('allow-btn');
+    const badge = document.getElementById('pass-status-badge');
+
+    // Reset
+    warnBox.classList.add('hidden');
+    actionBtns.classList.add('hidden');
+    noPassActions.classList.add('hidden');
+    passDetails.classList.add('hidden');
+    allowBtn.disabled = false;
+    allowBtn.textContent = '✓ ALLOW';
+    allowBtn.className = 'flex-1 bg-green-500 hover:bg-green-600 active:scale-95 py-4 rounded-xl font-bold text-lg transition-all';
+
+    if (!p) {
+        badge.textContent = 'No Pass';
+        badge.className = 'ml-auto text-xs px-3 py-1 rounded-full font-semibold bg-red-500/20 text-red-400';
+        noPassActions.classList.remove('hidden');
+        document.getElementById('add-pass-link').href = `/staff/users/${u.id}/pass`;
+        document.getElementById('user-card').classList.add('pulse-red');
+    } else {
+        currentPassId = p.id;
+
+        // Pass type badge
+        badge.textContent = '● Active';
+        badge.className = 'ml-auto text-xs px-3 py-1 rounded-full font-semibold bg-green-500/20 text-green-400';
+
+        // Pass details
+        document.getElementById('pass-type').textContent = p.pass_type;
+        document.getElementById('pass-remaining').textContent = p.remaining;
+        document.getElementById('pass-expiry').textContent = p.end_date;
+
+        const pct = Math.round((p.remaining / p.total_slots) * 100);
+        const bar = document.getElementById('pass-bar');
+        bar.style.width = pct + '%';
+        bar.className = 'h-2 rounded-full transition-all ' + (pct < 25 ? 'bg-red-400' : pct < 50 ? 'bg-yellow-400' : 'bg-green-400');
+        document.getElementById('pass-remaining').className = 'font-bold text-lg ' + (p.remaining <= 5 ? 'text-red-400' : p.remaining <= 10 ? 'text-yellow-400' : 'text-green-400');
+
+        passDetails.classList.remove('hidden');
+
+        // Check issues
+        let warn = null;
+        let canAllow = true;
+
+        if (meal === 'Closed') {
+            warn = '🔒 Mess is currently closed';
+            canAllow = false;
+        } else if (p.already_used_today) {
+            warn = `⚠️ Already used ${meal} today`;
+            canAllow = false;
+        } else if (p.pass_type !== 'Both' && p.pass_type !== meal) {
+            warn = `⚠️ ${p.pass_type} pass only — current meal is ${meal}`;
+            canAllow = false;
+        } else if (p.remaining <= 3) {
+            warn = `⚠️ Only ${p.remaining} slots remaining!`;
+        }
+
+        if (warn) {
+            warnBox.textContent = warn;
+            warnBox.classList.remove('hidden');
+        }
+
+        if (!canAllow) {
+            allowBtn.disabled = true;
+            allowBtn.textContent = '✗ Cannot Allow';
+            allowBtn.className = 'flex-1 bg-white/10 py-4 rounded-xl font-bold text-lg text-white/40 cursor-not-allowed';
+            document.getElementById('user-card').classList.add('pulse-red');
+        } else {
+            document.getElementById('user-card').classList.add('pulse-green');
+        }
+
+        actionBtns.classList.remove('hidden');
+    }
+
+    // Show panel
+    const panel = document.getElementById('result-panel');
+    panel.classList.remove('hidden-panel');
+    setStatus('User found', 'green');
+}
+
+// ── Allow Meal ────────────────────────────────────
+async function allowMeal() {
+    if (!currentUserId) return;
+    const btn = document.getElementById('allow-btn');
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+        const res = await fetch(`/staff/allow/${currentUserId}`, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success) {
+            btn.textContent = '✓ ALLOWED';
+            btn.className = 'flex-1 bg-green-600 py-4 rounded-xl font-bold text-lg';
+            showToast(data.message, true);
+            // Update remaining count in UI
+            const remEl = document.getElementById('pass-remaining');
+            if (remEl) remEl.textContent = data.remaining;
+            setTimeout(resetScanner, 2500);
+        } else {
+            btn.textContent = '✗ ' + data.message;
+            btn.className = 'flex-1 bg-red-600 py-4 rounded-xl font-bold text-base';
+            showToast(data.message, false);
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = '✓ ALLOW';
+                btn.className = 'flex-1 bg-green-500 hover:bg-green-600 active:scale-95 py-4 rounded-xl font-bold text-lg transition-all';
+            }, 2500);
+        }
+    } catch(e) {
+        showToast('Network error', false);
+        btn.disabled = false;
+    }
+}
+
+// ── Reset ─────────────────────────────────────────
+function resetScanner() {
+    currentUserId = null;
+    currentPassId = null;
+    lastScanned = null;
+    scanning = true;
+
+    document.getElementById('result-panel').classList.add('hidden-panel');
+    document.getElementById('user-card').classList.remove('pulse-green', 'pulse-red');
+    document.getElementById('scan-line').style.animationPlayState = 'running';
+    setStatus('Point camera at user\'s QR code', 'dim');
+}
+
+// ── Manual Lookup ─────────────────────────────────
+function manualLookup(e) {
+    e.preventDefault();
+    const id = parseInt(document.getElementById('manual-id').value);
+    if (!id) return;
+    scanning = false;
+    lookupUser(id);
+    document.getElementById('manual-id').value = '';
+}
+
+// ── Meal Badge ────────────────────────────────────
+async function loadMealBadge() {
+    try {
+        const res = await fetch('/staff/stats');
+        const d = await res.json();
+        const badge = document.getElementById('meal-badge');
+        if (d.current_meal === 'Closed') {
+            badge.textContent = '🔒 Closed';
+            badge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/50';
+        } else if (d.current_meal === 'Lunch') {
+            badge.textContent = '🌞 Lunch';
+            badge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400';
+        } else {
+            badge.textContent = '🌙 Dinner';
+            badge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400';
+        }
+    } catch(e) {}
+}
+
+// ── Helpers ───────────────────────────────────────
+function setStatus(msg, color) {
+    const el = document.getElementById('status-text');
+    el.textContent = msg;
+    el.className = 'text-sm ' + (color === 'green' ? 'text-green-400' : color === 'red' ? 'text-red-400' : 'text-white/40');
+}
+
+function showToast(msg, success) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl font-medium text-sm z-50 whitespace-nowrap ${success ? 'bg-green-600' : 'bg-red-600'}`;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+// Auto start camera on load
+window.addEventListener('load', startCamera);
+</script>
+{% endblock %}

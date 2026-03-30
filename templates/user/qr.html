@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}My QR Code{% endblock %}
+{% block content %}
+<div class="max-w-sm mx-auto text-center">
+    <h1 class="text-2xl font-bold mb-2">Your QR Code</h1>
+    <p class="text-white/40 text-sm mb-6">Show this to the mess staff</p>
+    <div class="bg-white p-6 rounded-2xl inline-block mb-4">
+        {% if user.qr_code %}
+        <img src="data:image/png;base64,{{ user.qr_code }}" class="w-48 h-48">
+        {% else %}
+        <p class="text-black text-sm p-8">QR not generated yet</p>
+        {% endif %}
+    </div>
+    <p class="text-white/50 text-sm">ID: <span class="font-bold text-white">{{ user.id }}</span></p>
+    <p class="text-white/50 text-sm mt-1">{{ user.name }}</p>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}User History{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">{{ user.name }}</h1>
+            <p class="text-white/40 text-sm">ID: {{ user.id }} • {{ user.user_type | title }} • {{ user.mobile }}</p>
+        </div>
+        <a href="{{ url_for('staff.search') }}?uid={{ user.id }}" class="text-sm text-white/40 hover:text-white">← Back</a>
+    </div>
+
+    <!-- All Passes -->
+    <div class="bg-[#16213e] rounded-2xl p-5 mb-5">
+        <h2 class="font-semibold mb-4 text-sm text-white/50 uppercase tracking-wider">Pass History</h2>
+        {% if passes %}
+        <div class="space-y-3">
+            {% for p in passes %}
+            <div class="bg-[#0f3460] rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <span class="font-semibold">{{ p.pass_type }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full
+                            {{ 'bg-green-500/20 text-green-400' if p.status == 'Active' else 'bg-red-500/20 text-red-400' }}">
+                            {{ p.status }}
+                        </span>
+                    </div>
+                    <span class="text-white/40 text-sm font-semibold text-green-400">₹{{ p.amount_paid }}</span>
+                </div>
+                <div class="flex gap-6 mt-2 text-xs text-white/40">
+                    <span>{{ p.start_date.strftime('%d %b %Y') }} → {{ p.end_date.strftime('%d %b %Y') }}</span>
+                    <span>{{ p.used_slots }} / {{ p.total_slots }} slots used</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-white/30 text-sm">No passes found</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Usage Logs -->
+    <div class="bg-[#16213e] rounded-2xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-white/10">
+            <h2 class="font-semibold text-sm text-white/50 uppercase tracking-wider">Recent Meal Usage (Last 50)</h2>
+        </div>
+        {% if logs %}
+        <table class="w-full text-sm">
+            <thead class="border-b border-white/10">
+                <tr class="text-white/40 text-xs uppercase">
+                    <th class="text-left px-5 py-3">Date</th>
+                    <th class="text-left px-5 py-3">Meal</th>
+                    <th class="text-center px-5 py-3">Slots</th>
+                    <th class="text-left px-5 py-3">Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="border-b border-white/5 hover:bg-white/5">
+                    <td class="px-5 py-3">{{ log.date.strftime('%d %b %Y') }}</td>
+                    <td class="px-5 py-3">
+                        <span class="{{ 'text-amber-400' if log.meal_type == 'Lunch' else 'text-blue-400' }}">
+                            {{ '🌞' if log.meal_type == 'Lunch' else '🌙' }} {{ log.meal_type }}
+                        </span>
+                    </td>
+                    <td class="text-center px-5 py-3 text-white/60">{{ log.slots_used }}</td>
+                    <td class="px-5 py-3 text-white/40 text-xs">
+                        {{ log.entry_time.strftime('%I:%M %p') if log.entry_time else '—' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-white/30 py-8">No usage logs found</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

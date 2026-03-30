@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Atmiya Mess</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Space Grotesk', sans-serif; }</style>
+</head>
+<body class="bg-[#1a1a2e] text-white min-h-screen flex items-center justify-center p-4">
+
+<div class="w-full max-w-md">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <div class="text-5xl mb-3">🍱</div>
+        <h1 class="text-3xl font-bold">Atmiya Mess</h1>
+        <p class="text-white/50 text-sm mt-1">Mess Management System</p>
+    </div>
+
+    <!-- Tab Switch -->
+    <div class="flex bg-[#16213e] rounded-xl p-1 mb-6">
+        <button onclick="switchTab('admin')" id="tab-admin"
+            class="flex-1 py-2 rounded-lg text-sm font-semibold transition-all bg-[#e94560] text-white">
+            Staff / Boss
+        </button>
+        <button onclick="switchTab('user')" id="tab-user"
+            class="flex-1 py-2 rounded-lg text-sm font-semibold transition-all text-white/50">
+            Student / Faculty
+        </button>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="bg-red-900/50 text-red-200 px-4 py-3 rounded-lg text-sm mb-4">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Admin Login -->
+    <div id="form-admin">
+        <form method="POST" class="bg-[#16213e] rounded-2xl p-6 space-y-4">
+            <input type="hidden" name="portal" value="admin">
+            <div>
+                <label class="text-sm text-white/60 mb-1 block">Username</label>
+                <input name="username" type="text" required
+                    class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]"
+                    placeholder="admin">
+            </div>
+            <div>
+                <label class="text-sm text-white/60 mb-1 block">Password</label>
+                <input name="password" type="password" required
+                    class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]"
+                    placeholder="••••••••">
+            </div>
+            <button type="submit"
+                class="w-full bg-[#e94560] hover:bg-[#c73652] py-3 rounded-xl font-semibold text-sm transition-all">
+                Login as Staff
+            </button>
+        </form>
+    </div>
+
+    <!-- User Login -->
+    <div id="form-user" class="hidden">
+        <form method="POST" class="bg-[#16213e] rounded-2xl p-6 space-y-4">
+            <input type="hidden" name="portal" value="user">
+            <div>
+                <label class="text-sm text-white/60 mb-1 block">Your User ID</label>
+                <input name="user_id" type="number" required
+                    class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]"
+                    placeholder="1234">
+            </div>
+            <div>
+                <label class="text-sm text-white/60 mb-1 block">Mobile Number</label>
+                <input name="mobile" type="tel" required
+                    class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]"
+                    placeholder="9876543210">
+            </div>
+            <div id="password-field" class="hidden">
+                <label class="text-sm text-white/60 mb-1 block">Password (if set)</label>
+                <input name="password" type="password"
+                    class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]"
+                    placeholder="••••••">
+            </div>
+            <button type="submit"
+                class="w-full bg-[#e94560] hover:bg-[#c73652] py-3 rounded-xl font-semibold text-sm transition-all">
+                View My Pass
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+function switchTab(tab) {
+    document.getElementById('form-admin').classList.toggle('hidden', tab !== 'admin');
+    document.getElementById('form-user').classList.toggle('hidden', tab !== 'user');
+    document.getElementById('tab-admin').className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-all ' + 
+        (tab === 'admin' ? 'bg-[#e94560] text-white' : 'text-white/50');
+    document.getElementById('tab-user').className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-all ' + 
+        (tab === 'user' ? 'bg-[#e94560] text-white' : 'text-white/50');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}My Pass — Atmiya Mess{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+
+    <div class="text-center mb-8">
+        <div class="text-4xl mb-2">👋</div>
+        <h1 class="text-2xl font-bold">Hi, {{ user.name.split()[0] }}!</h1>
+        <p class="text-white/40 text-sm">ID: {{ user.id }} • {{ user.user_type | title }}</p>
+    </div>
+
+    {% if alert %}
+    <div class="bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 rounded-xl px-5 py-4 mb-6 text-sm font-medium">
+        ⚠️ {{ alert }}
+    </div>
+    {% endif %}
+
+    {% if active_pass %}
+    {% set remaining = active_pass.total_slots - active_pass.used_slots %}
+    {% set pct = (remaining / active_pass.total_slots * 100) | int %}
+
+    <div class="bg-[#16213e] rounded-2xl p-6 mb-4">
+        <div class="flex justify-between items-center mb-5">
+            <h2 class="font-semibold">Your Pass</h2>
+            <span class="text-xs bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-semibold">● Active</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-5">
+            <div class="bg-[#0f3460] rounded-xl p-4 text-center">
+                <div class="text-3xl font-bold 
+                    {% if remaining <= 5 %}text-red-400
+                    {% elif remaining <= 10 %}text-yellow-400
+                    {% else %}text-green-400{% endif %}">
+                    {{ remaining }}
+                </div>
+                <div class="text-xs text-white/50 mt-1">Meals Remaining</div>
+            </div>
+            <div class="bg-[#0f3460] rounded-xl p-4 text-center">
+                <div class="text-xl font-bold">{{ active_pass.pass_type }}</div>
+                <div class="text-xs text-white/50 mt-1">Pass Type</div>
+            </div>
+        </div>
+
+        <div class="bg-white/5 rounded-xl p-4 mb-4 space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-white/50">Valid Until</span>
+                <span class="font-medium">{{ active_pass.end_date.strftime('%d %B %Y') }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-white/50">Total Slots</span>
+                <span>{{ active_pass.total_slots }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-white/50">Used</span>
+                <span>{{ active_pass.used_slots }}</span>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div>
+            <div class="flex justify-between text-xs text-white/40 mb-2">
+                <span>Slots used</span>
+                <span>{{ pct }}% remaining</span>
+            </div>
+            <div class="bg-white/10 rounded-full h-3">
+                <div class="h-3 rounded-full transition-all
+                    {% if pct < 25 %}bg-red-400{% elif pct < 50 %}bg-yellow-400{% else %}bg-green-400{% endif %}"
+                     style="width: {{ pct }}%"></div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="bg-[#16213e] rounded-2xl p-6 mb-4 text-center">
+        <div class="text-4xl mb-3">🎫</div>
+        <p class="font-semibold mb-1">No Active Pass</p>
+        <p class="text-white/40 text-sm">Contact mess admin to get a new pass</p>
+    </div>
+    {% endif %}
+
+    <!-- Recent Activity -->
+    {% if recent_logs %}
+    <div class="bg-[#16213e] rounded-2xl p-5 mb-4">
+        <h2 class="font-semibold mb-4 text-sm uppercase tracking-wider text-white/50">Recent Meals</h2>
+        <div class="space-y-2">
+            {% for log in recent_logs %}
+            <div class="flex justify-between items-center py-2 border-b border-white/5 text-sm">
+                <div class="flex items-center gap-3">
+                    <span>{{ '🌞' if log.meal_type == 'Lunch' else '🌙' }}</span>
+                    <div>
+                        <span class="font-medium">{{ log.meal_type }}</span>
+                        <span class="text-white/30 ml-2 text-xs">{{ log.date.strftime('%d %b') }}</span>
+                    </div>
+                </div>
+                <span class="text-white/40 text-xs">{{ log.slots_used }} slot{{ 's' if log.slots_used > 1 }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- QR + Settings -->
+    <div class="grid grid-cols-2 gap-3">
+        <a href="{{ url_for('user.show_qr') }}"
+           class="bg-[#16213e] rounded-2xl p-4 text-center hover:bg-[#1e2d4e] transition-all">
+            <div class="text-3xl mb-2">📱</div>
+            <div class="text-sm font-medium">My QR Code</div>
+        </a>
+        <div class="bg-[#16213e] rounded-2xl p-4">
+            <div class="text-sm font-medium mb-3">Update Password</div>
+            <form method="POST" action="{{ url_for('user.update_password') }}" class="space-y-2">
+                <input name="new_password" type="password" placeholder="New password"
+                    class="w-full bg-[#0f3460] border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none">
+                <input name="confirm_password" type="password" placeholder="Confirm"
+                    class="w-full bg-[#0f3460] border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none">
+                <button type="submit" class="w-full bg-[#e94560]/80 hover:bg-[#e94560] py-2 rounded-lg text-xs font-semibold">
+                    Update
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

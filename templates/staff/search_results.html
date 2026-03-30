@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Search Results{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold">Results for "{{ query }}"</h1>
+        <a href="{{ url_for('staff.search') }}" class="text-sm text-white/40 hover:text-white">← Back</a>
+    </div>
+
+    {% if users %}
+    <div class="bg-[#16213e] rounded-2xl overflow-hidden">
+        {% for u in users %}
+        <a href="{{ url_for('staff.search') }}?uid={{ u.id }}"
+           class="flex items-center justify-between px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-all">
+            <div>
+                <span class="font-medium">{{ u.name }}</span>
+                <span class="text-white/30 text-sm ml-3">ID: {{ u.id }}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-white/40 text-sm">{{ u.branch or '' }}</span>
+                <span class="text-xs px-2 py-1 rounded-full
+                    {% if u.user_type == 'student' %}bg-blue-500/20 text-blue-400
+                    {% else %}bg-purple-500/20 text-purple-400{% endif %}">
+                    {{ u.user_type }}
+                </span>
+                <span class="text-white/30">→</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-16 text-white/30">No users found matching "{{ query }}"</div>
+    {% endif %}
+</div>
+{% endblock %}

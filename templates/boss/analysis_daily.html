@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Daily Analysis{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+    <!-- Nav Tabs -->
+    <div class="flex gap-2 mb-6">
+        <a href="{{ url_for('boss.analysis_daily') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#e94560] text-white">Daily</a>
+        <a href="{{ url_for('boss.analysis_range') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#16213e] text-white/60 hover:text-white">Range</a>
+        <a href="{{ url_for('boss.analysis_monthly') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#16213e] text-white/60 hover:text-white">Monthly</a>
+    </div>
+
+    <!-- Date Picker -->
+    <div class="bg-[#16213e] rounded-2xl p-4 mb-5 flex items-center gap-4">
+        <form method="GET" class="flex items-center gap-3 flex-1">
+            <label class="text-sm text-white/50">Date</label>
+            <input type="date" name="date" value="{{ selected }}"
+                class="bg-[#0f3460] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#e94560]">
+            <button type="submit" class="bg-[#e94560] hover:bg-[#c73652] px-4 py-2 rounded-xl text-sm font-semibold">Load</button>
+        </form>
+        <!-- Holiday note -->
+        <form method="POST" action="{{ url_for('boss.save_note') }}" class="flex items-center gap-2">
+            <input type="hidden" name="note_date" value="{{ selected }}">
+            <input name="label" type="text" placeholder="Add note (e.g. Diwali)"
+                value="{{ note.label if note else '' }}"
+                class="bg-[#0f3460] border border-white/10 rounded-xl px-3 py-2 text-sm w-40 focus:outline-none focus:border-[#e94560]">
+            <label class="flex items-center gap-1 text-xs text-white/50 cursor-pointer">
+                <input type="checkbox" name="is_holiday" {{ 'checked' if note and note.is_holiday }}>
+                Holiday
+            </label>
+            <button type="submit" class="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-xl text-xs">Save</button>
+        </form>
+    </div>
+
+    {% if note %}
+    <div class="bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 rounded-xl px-4 py-3 mb-5 text-sm">
+        📌 {{ note.label }}{% if note.is_holiday %} — <span class="font-semibold">Holiday</span>{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Cash Summary Cards -->
+    <div class="grid grid-cols-3 gap-4 mb-5">
+        <div class="bg-[#16213e] rounded-2xl p-5 text-center">
+            <div class="text-2xl font-bold text-green-400">₹{{ "%.0f"|format(pass_cash) }}</div>
+            <div class="text-xs text-white/40 mt-1">Pass Revenue</div>
+        </div>
+        <div class="bg-[#16213e] rounded-2xl p-5 text-center">
+            <div class="text-2xl font-bold text-yellow-400">₹{{ "%.0f"|format(ot_cash) }}</div>
+            <div class="text-xs text-white/40 mt-1">One Time Revenue</div>
+        </div>
+        <div class="bg-[#16213e] rounded-2xl p-5 text-center">
+            <div class="text-2xl font-bold text-[#e94560]">₹{{ "%.0f"|format(total_cash) }}</div>
+            <div class="text-xs text-white/40 mt-1">Total Revenue</div>
+        </div>
+    </div>
+
+    <!-- Stats Table -->
+    <div class="bg-[#16213e] rounded-2xl overflow-hidden mb-5">
+        <table class="w-full text-sm">
+            <thead class="border-b border-white/10">
+                <tr class="text-white/40 text-xs uppercase">
+                    <th class="text-left px-5 py-4">Category</th>
+                    <th class="text-center px-5 py-4">🌞 Lunch</th>
+                    <th class="text-center px-5 py-4">🌙 Dinner</th>
+                    <th class="text-center px-5 py-4">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set icons = {'Hostel':'🏠','OneTime':'💵','StudentPass':'🎓','FacultyPass':'👨‍🏫','SpecialGuest':'⭐'} %}
+                {% for cat in categories %}
+                <tr class="border-b border-white/5">
+                    <td class="px-5 py-3">{{ icons.get(cat,'') }} {{ cat.replace('Pass','').replace('One','One ') }}</td>
+                    <td class="text-center px-5 py-3 font-medium">{{ stats['Lunch'].get(cat, 0) }}</td>
+                    <td class="text-center px-5 py-3 font-medium">{{ stats['Dinner'].get(cat, 0) }}</td>
+                    <td class="text-center px-5 py-3 font-medium">{{ stats['Lunch'].get(cat,0) + stats['Dinner'].get(cat,0) }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="font-bold text-[#e94560] bg-white/5">
+                    <td class="px-5 py-3">Total</td>
+                    <td class="text-center px-5 py-3">{{ stats['Lunch']['Total'] }}</td>
+                    <td class="text-center px-5 py-3">{{ stats['Dinner']['Total'] }}</td>
+                    <td class="text-center px-5 py-3">{{ grand_total }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Compare with previous day -->
+    <div class="bg-[#16213e] rounded-2xl p-5">
+        <h3 class="font-semibold mb-3 text-sm text-white/50 uppercase tracking-wider">Comparison</h3>
+        <div class="flex items-center gap-6 text-sm">
+            <div>
+                <span class="text-white/40">Today total</span>
+                <span class="font-bold text-xl ml-3">{{ grand_total }}</span>
+            </div>
+            <div class="text-white/20">vs</div>
+            <div>
+                <span class="text-white/40">{{ prev_date.strftime('%d %b') }}</span>
+                <span class="font-bold text-xl ml-3">{{ prev_total }}</span>
+            </div>
+            {% set diff = grand_total - prev_total %}
+            <div class="ml-auto text-lg font-bold {{ 'text-green-400' if diff >= 0 else 'text-red-400' }}">
+                {{ '+' if diff >= 0 else '' }}{{ diff }}
+                <span class="text-sm font-normal ml-1">{{ '▲' if diff > 0 else ('▼' if diff < 0 else '—') }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

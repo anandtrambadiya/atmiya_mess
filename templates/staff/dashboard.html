@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Atmiya Mess{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Dashboard</h1>
+            <p class="text-white/40 text-sm" id="clock"></p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="px-4 py-2 rounded-full text-sm font-bold 
+                {% if data.current_meal == 'Closed' %}bg-white/10 text-white/50
+                {% elif data.current_meal == 'Lunch' %}bg-amber-500/20 text-amber-400
+                {% else %}bg-blue-500/20 text-blue-400{% endif %}">
+                {{ '🔒 Mess Closed' if data.current_meal == 'Closed' else ('🌞 ' if data.current_meal == 'Lunch' else '🌙 ') + data.current_meal + ' Time' }}
+            </span>
+            <a href="{{ url_for('staff.search') }}" 
+               class="bg-[#e94560] hover:bg-[#c73652] px-4 py-2 rounded-xl text-sm font-semibold">
+                Search User
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- LEFT: Quick Actions -->
+        <div class="space-y-4">
+            <div class="bg-[#16213e] rounded-2xl p-5">
+                <h2 class="font-semibold mb-4 text-white/70 text-sm uppercase tracking-wider">Manual Count</h2>
+                <div class="space-y-3">
+                    <button onclick="manualCount('Hostel')" 
+                        class="w-full bg-[#0f3460] hover:bg-[#1a4a8a] px-4 py-3 rounded-xl text-left font-medium flex justify-between items-center transition-all">
+                        <span>🏠 Hostel</span>
+                        <span class="text-xs bg-white/10 px-2 py-1 rounded">F3</span>
+                    </button>
+                    <button onclick="manualCount('OneTime')"
+                        class="w-full bg-[#0f3460] hover:bg-[#1a4a8a] px-4 py-3 rounded-xl text-left font-medium flex justify-between items-center transition-all">
+                        <span>💵 One Time</span>
+                        <span class="text-xs bg-white/10 px-2 py-1 rounded">F9</span>
+                    </button>
+                    <button onclick="manualCount('SpecialGuest')"
+                        class="w-full bg-[#0f3460] hover:bg-[#1a4a8a] px-4 py-3 rounded-xl text-left font-medium flex justify-between items-center transition-all">
+                        <span>⭐ Special Guest</span>
+                        <span class="text-xs bg-white/10 px-2 py-1 rounded">F7</span>
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="undoLast()"
+                class="w-full bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2">
+                ↩ Undo Last Action
+            </button>
+
+            <!-- Cash Summary -->
+            <div class="bg-[#16213e] rounded-2xl p-5">
+                <h2 class="font-semibold mb-4 text-white/70 text-sm uppercase tracking-wider">Today's Revenue</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-white/60">Pass Sales</span>
+                        <span class="font-semibold text-green-400" id="cash-pass">₹{{ "%.0f"|format(data.pass_cash) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-white/60">One Time</span>
+                        <span class="font-semibold text-yellow-400" id="cash-ot">₹{{ "%.0f"|format(data.ot_cash) }}</span>
+                    </div>
+                    <div class="border-t border-white/10 pt-3 flex justify-between">
+                        <span class="font-semibold">Total</span>
+                        <span class="font-bold text-[#e94560]" id="cash-total">₹{{ "%.0f"|format(data.total_cash) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER + RIGHT: Meal Stats -->
+        <div class="lg:col-span-2 space-y-4">
+
+            <!-- Current Meal Stats -->
+            <div class="bg-[#16213e] rounded-2xl p-5">
+                <h2 class="font-semibold mb-4 text-white/70 text-sm uppercase tracking-wider">
+                    Current Meal — {{ data.current_meal }}
+                </h2>
+                <div class="grid grid-cols-3 gap-3">
+                    {% set cur = data.stats[data.current_meal] if data.current_meal != 'Closed' else data.stats['Lunch'] %}
+                    {% set cats = [('Hostel','🏠','blue'), ('OneTime','💵','yellow'), ('StudentPass','🎓','green'), ('FacultyPass','👨‍🏫','purple'), ('SpecialGuest','⭐','pink')] %}
+                    {% for cat, icon, color in cats %}
+                    <div class="bg-[#0f3460] rounded-xl p-4 text-center">
+                        <div class="text-2xl mb-1">{{ icon }}</div>
+                        <div class="text-2xl font-bold" id="stat-cur-{{ cat }}">{{ cur.get(cat, 0) }}</div>
+                        <div class="text-xs text-white/50 mt-1">{{ cat.replace('Pass','').replace('One','One ') }}</div>
+                    </div>
+                    {% endfor %}
+                    <div class="bg-[#e94560]/20 border border-[#e94560]/30 rounded-xl p-4 text-center">
+                        <div class="text-2xl mb-1">📊</div>
+                        <div class="text-2xl font-bold text-[#e94560]" id="stat-cur-Total">{{ cur.get('Total', 0) }}</div>
+                        <div class="text-xs text-white/50 mt-1">Total</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Today Full Summary -->
+            <div class="bg-[#16213e] rounded-2xl p-5">
+                <h2 class="font-semibold mb-4 text-white/70 text-sm uppercase tracking-wider">Today's Full Summary</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-white/40 text-xs uppercase border-b border-white/10">
+                                <th class="text-left py-2">Category</th>
+                                <th class="text-center py-2">Lunch</th>
+                                <th class="text-center py-2">Dinner</th>
+                                <th class="text-center py-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat, icon, color in cats %}
+                            <tr class="border-b border-white/5">
+                                <td class="py-2">{{ icon }} {{ cat.replace('Pass','').replace('One','One ') }}</td>
+                                <td class="text-center py-2 font-medium">{{ data.stats['Lunch'].get(cat, 0) }}</td>
+                                <td class="text-center py-2 font-medium">{{ data.stats['Dinner'].get(cat, 0) }}</td>
+                                <td class="text-center py-2 font-medium">{{ data.stats['Lunch'].get(cat, 0) + data.stats['Dinner'].get(cat, 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="font-bold text-[#e94560]">
+                                <td class="py-2">Total</td>
+                                <td class="text-center py-2">{{ data.stats['Lunch']['Total'] }}</td>
+                                <td class="text-center py-2">{{ data.stats['Dinner']['Total'] }}</td>
+                                <td class="text-center py-2">{{ data.stats['Lunch']['Total'] + data.stats['Dinner']['Total'] }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="hidden fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-2xl font-medium text-sm z-50"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Clock
+function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'}) + ' • ' + now.toLocaleTimeString('en-IN');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Toast
+function showToast(msg, success=true) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-2xl font-medium text-sm z-50 ${success ? 'bg-green-600' : 'bg-red-600'}`;
+    setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+// Manual count
+function manualCount(category) {
+    fetch('/staff/manual_count', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `category=${category}`
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) showToast(`✓ ${category} count added`);
+        else showToast(d.message, false);
+    });
+}
+
+// Undo
+function undoLast() {
+    fetch('/staff/undo', { method: 'POST' })
+    .then(r => r.json())
+    .then(d => showToast(d.message, d.success));
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+    if (e.key === 'F3') { e.preventDefault(); manualCount('Hostel'); }
+    if (e.key === 'F7') { e.preventDefault(); manualCount('SpecialGuest'); }
+    if (e.key === 'F9') { e.preventDefault(); manualCount('OneTime'); }
+});
+
+// Auto refresh stats every 30 seconds
+setInterval(() => {
+    fetch('/staff/stats').then(r => r.json()).then(d => {
+        document.getElementById('cash-pass').textContent = '₹' + Math.round(d.pass_cash);
+        document.getElementById('cash-ot').textContent = '₹' + Math.round(d.ot_cash);
+        document.getElementById('cash-total').textContent = '₹' + Math.round(d.total_cash);
+    });
+}, 30000);
+</script>
+{% endblock %}

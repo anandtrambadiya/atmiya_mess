@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Add Pass{% endblock %}
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <h1 class="text-2xl font-bold mb-2">Create Pass</h1>
+    <p class="text-white/40 text-sm mb-6">For: {{ user.name }} ({{ user.user_type }})</p>
+    <form method="POST" class="bg-[#16213e] rounded-2xl p-6 space-y-4">
+        <div>
+            <label class="text-sm text-white/60 mb-1 block">Pass Type</label>
+            <select name="pass_type" id="pass_type" onchange="updateFee()" required
+                class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none">
+                <option value="Lunch">Lunch (30 slots)</option>
+                <option value="Dinner">Dinner (30 slots)</option>
+                <option value="Both">Both (60 slots)</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-sm text-white/60 mb-1 block">Start Date</label>
+            <input name="start_date" type="date" required
+                value="{{ today }}"
+                class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]">
+        </div>
+        <div class="bg-[#0f3460] rounded-xl p-4">
+            <div class="flex justify-between text-sm">
+                <span class="text-white/60">Fee</span>
+                <span class="font-bold text-[#e94560]" id="fee-display">
+                    ₹{{ settings.student_price if user.user_type == 'student' else settings.faculty_price }}
+                </span>
+            </div>
+            <p class="text-xs text-white/30 mt-1">Pass valid for 40 days from start date</p>
+        </div>
+        <button type="submit" class="w-full bg-[#e94560] hover:bg-[#c73652] py-3 rounded-xl font-semibold">Create Pass</button>
+    </form>
+</div>
+<script>
+const prices = {
+    student: { Lunch: {{ settings.student_price }}, Dinner: {{ settings.student_price }}, Both: {{ settings.student_both }} },
+    faculty: { Lunch: {{ settings.faculty_price }}, Dinner: {{ settings.faculty_price }}, Both: {{ settings.faculty_both }} }
+};
+const utype = '{{ user.user_type }}';
+function updateFee() {
+    const pt = document.getElementById('pass_type').value;
+    document.getElementById('fee-display').textContent = '₹' + prices[utype][pt];
+}
+</script>
+{% endblock %}

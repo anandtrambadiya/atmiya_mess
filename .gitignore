@@ -1,0 +1,19 @@
+# Database - never commit this
+instance/
+*.db
+*.sqlite
+
+# Environment secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/

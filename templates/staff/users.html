@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}All Users{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold">All Users</h1>
+        <a href="{{ url_for('staff.add_user') }}" class="bg-[#e94560] hover:bg-[#c73652] px-4 py-2 rounded-xl text-sm font-semibold">+ Add User</a>
+    </div>
+
+    <!-- Search filter -->
+    <div class="bg-[#16213e] rounded-2xl p-4 mb-4">
+        <input type="text" id="filterInput" placeholder="Filter by name, branch, type..."
+            class="w-full bg-[#0f3460] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#e94560]"
+            oninput="filterTable()">
+    </div>
+
+    <div class="bg-[#16213e] rounded-2xl overflow-hidden">
+        <table class="w-full text-sm" id="usersTable">
+            <thead class="border-b border-white/10">
+                <tr class="text-white/40 text-xs uppercase">
+                    <th class="text-left px-5 py-4">ID</th>
+                    <th class="text-left px-5 py-4">Name</th>
+                    <th class="text-left px-5 py-4">Type</th>
+                    <th class="text-left px-5 py-4">Branch</th>
+                    <th class="text-left px-5 py-4">Mobile</th>
+                    <th class="text-left px-5 py-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr class="border-b border-white/5 hover:bg-white/5 transition-all user-row">
+                    <td class="px-5 py-3 font-mono text-white/60">{{ u.id }}</td>
+                    <td class="px-5 py-3 font-medium">{{ u.name }}</td>
+                    <td class="px-5 py-3">
+                        <span class="text-xs px-2 py-1 rounded-full
+                            {% if u.user_type == 'student' %}bg-blue-500/20 text-blue-400
+                            {% else %}bg-purple-500/20 text-purple-400{% endif %}">
+                            {{ u.user_type }}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3 text-white/50">{{ u.branch or '—' }}</td>
+                    <td class="px-5 py-3 text-white/50">{{ u.mobile }}</td>
+                    <td class="px-5 py-3">
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('staff.search') }}?uid={{ u.id }}"
+                               class="text-xs bg-white/5 hover:bg-white/10 px-3 py-1 rounded-lg">View</a>
+                            <a href="{{ url_for('staff.edit_user', user_id=u.id) }}"
+                               class="text-xs bg-white/5 hover:bg-white/10 px-3 py-1 rounded-lg">Edit</a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-white/30 py-12">No users found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="text-white/30 text-xs mt-3">Total: {{ users|length }} users</p>
+</div>
+
+<script>
+function filterTable() {
+    const val = document.getElementById('filterInput').value.toLowerCase();
+    document.querySelectorAll('.user-row').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(val) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}
