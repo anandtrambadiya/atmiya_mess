@@ -237,13 +237,17 @@ let animFrame = null;
 async function startCamera() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } }
+            video: {
+                facingMode: 'environment',
+                width: { ideal: 640 },
+                height: { ideal: 640 }
+            }
         });
         video.srcObject = stream;
         video.addEventListener('loadedmetadata', () => {
             document.getElementById('cam-status').style.display = 'none';
             video.play();
-            requestAnimationFrame(tick);
+            requestAnimationFrame(tick);  // starts with timestamp=0
             loadMealBadge();
         });
     } catch(err) {
@@ -257,22 +261,32 @@ async function startCamera() {
 }
 
 // ── QR Scan Loop ──────────────────────────────────
-function tick() {
-    if (!scanning) { animFrame = requestAnimationFrame(tick); return; }
+const SCAN_SIZE = 400;  // scan at 400x400 regardless of camera resolution
+let lastTickTime = 0;
 
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width  = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
+function tick(timestamp) {
+    animFrame = requestAnimationFrame(tick);
+    if (!scanning) return;
 
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert'
-        });
+    // Throttle: scan every 150ms max, not every frame
+    if (timestamp - lastTickTime < 150) return;
+    lastTickTime = timestamp;
 
-        if (code) {
-            const val = code.data.trim();
-            if (val !== lastScanned && /^\d+$/.test(val)) {
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+    // Draw video scaled DOWN to SCAN_SIZE — much faster for jsQR
+    canvas.width  = SCAN_SIZE;
+    canvas.height = SCAN_SIZE;
+    ctx.drawImage(video, 0, 0, SCAN_SIZE, SCAN_SIZE);
+
+    const imageData = ctx.getImageData(0, 0, SCAN_SIZE, SCAN_SIZE);
+    const code = jsQR(imageData.data, SCAN_SIZE, SCAN_SIZE, {
+        inversionAttempts: 'dontInvert'
+    });
+
+    if (code) {
+        const val = code.data.trim();
+        if (val !== lastScanned && /^\d+$/.test(val)) {
                 lastScanned = val;
                 scanning = false;
                 document.getElementById('scan-line').style.animationPlayState = 'paused';
