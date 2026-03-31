@@ -104,7 +104,7 @@
         <h1 class="text-xl font-bold">QR Scanner</h1>
         <div class="flex items-center gap-2">
             <span id="meal-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/50">
-                Loading...
+                ...
             </span>
             <a href="{{ url_for('staff.search') }}" class="text-sm text-white/40 hover:text-white">Manual →</a>
         </div>
@@ -124,10 +124,10 @@
         <!-- Camera status overlay -->
         <div id="cam-status" class="absolute inset-0 flex items-center justify-center bg-black/80 text-center p-6">
             <div>
-                <div class="text-4xl mb-3">📷</div>
-                <p class="text-sm text-white/70 mb-4">Camera permission needed</p>
-                <button onclick="startCamera()" class="bg-[#e94560] hover:bg-[#c73652] px-5 py-2 rounded-xl text-sm font-semibold">
-                    Enable Camera
+                <div class="text-4xl mb-3" id="cam-icon">📷</div>
+                <p class="text-sm text-white/70 mb-4" id="cam-msg">Tap to start camera</p>
+                <button onclick="startCamera()" id="cam-btn" class="bg-[#e94560] hover:bg-[#c73652] px-5 py-2 rounded-xl text-sm font-semibold">
+                    Start Camera
                 </button>
             </div>
         </div>
@@ -235,29 +235,55 @@ let animFrame = null;
 
 // ── Camera ────────────────────────────────────────
 async function startCamera() {
+    const btn = document.getElementById('cam-btn');
+    const msg = document.getElementById('cam-msg');
+    const icon = document.getElementById('cam-icon');
+
+    btn.textContent = 'Starting...';
+    btn.disabled = true;
+    msg.textContent = 'Requesting camera access...';
+
+    // Check if mediaDevices is available at all
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        icon.textContent = '🚫';
+        msg.textContent = 'Camera not supported on this browser';
+        btn.textContent = 'Not supported';
+        return;
+    }
+
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
             video: {
-                facingMode: 'environment',
+                facingMode: { ideal: 'environment' },
                 width: { ideal: 640 },
                 height: { ideal: 640 }
             }
         });
         video.srcObject = stream;
         video.addEventListener('loadedmetadata', () => {
-            document.getElementById('cam-status').style.display = 'none';
             video.play();
-            requestAnimationFrame(tick);  // starts with timestamp=0
-            loadMealBadge();
+            document.getElementById('cam-status').style.display = 'none';
+            requestAnimationFrame(tick);
+        });
+        video.addEventListener('error', (e) => {
+            showCameraError('Video error: ' + e.message);
         });
     } catch(err) {
-        document.getElementById('cam-status').innerHTML = `
-            <div class="text-center p-6">
-                <div class="text-4xl mb-3">🚫</div>
-                <p class="text-sm text-red-400 mb-3">Camera access denied</p>
-                <p class="text-xs text-white/40">Use the manual ID field below</p>
-            </div>`;
+        let errMsg = 'Camera access denied';
+        if (err.name === 'NotFoundError') errMsg = 'No camera found on this device';
+        else if (err.name === 'NotAllowedError') errMsg = 'Camera permission denied — allow in browser settings';
+        else if (err.name === 'NotReadableError') errMsg = 'Camera in use by another app';
+        else errMsg = err.name + ': ' + err.message;
+        showCameraError(errMsg);
     }
+}
+
+function showCameraError(msg) {
+    document.getElementById('cam-icon').textContent = '🚫';
+    document.getElementById('cam-msg').textContent = msg;
+    const btn = document.getElementById('cam-btn');
+    btn.textContent = 'Try Again';
+    btn.disabled = false;
 }
 
 // ── QR Scan Loop ──────────────────────────────────
@@ -503,7 +529,11 @@ function showToast(msg, success) {
     setTimeout(() => t.classList.add('hidden'), 3000);
 }
 
-// Auto start camera on load
-window.addEventListener('load', startCamera);
+// Load meal badge immediately on page load
+window.addEventListener('load', () => {
+    loadMealBadge();
+    // Try auto-start - if browser blocks it, user sees the button
+    startCamera().catch(() => {});
+});
 </script>
 {% endblock %}
