@@ -1,51 +1,59 @@
 {% extends "base.html" %}
 {% block title %}Range Analysis{% endblock %}
+
 {% block content %}
 <div class="max-w-5xl mx-auto">
 
-    <!-- Nav Tabs -->
-    <div class="flex gap-2 mb-6">
-        <a href="{{ url_for('boss.analysis_daily') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#16213e] text-white/60 hover:text-white">Daily</a>
-        <a href="{{ url_for('boss.analysis_range') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#e94560] text-white">Range</a>
-        <a href="{{ url_for('boss.analysis_monthly') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#16213e] text-white/60 hover:text-white">Monthly</a>
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-5 overflow-x-auto pb-1">
+        <a href="{{ url_for('boss.analysis_daily') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#16213e] text-white/60 hover:text-white whitespace-nowrap">Daily</a>
+        <a href="{{ url_for('boss.analysis_monthly') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#16213e] text-white/60 hover:text-white whitespace-nowrap">Monthly</a>
+        <a href="{{ url_for('boss.analysis_range') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-[#e94560] text-white whitespace-nowrap">Range</a>
+        <a href="{{ url_for('boss.alerts') }}" class="px-4 py-2 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 whitespace-nowrap">⚠️ Low Slots</a>
     </div>
 
     <!-- Filters -->
-    <form method="GET" class="bg-[#16213e] rounded-2xl p-4 mb-5 flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-2">
-            <label class="text-sm text-white/50">From</label>
-            <input type="date" name="from" value="{{ from_str }}"
-                class="bg-[#0f3460] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#e94560]">
-        </div>
-        <div class="flex items-center gap-2">
-            <label class="text-sm text-white/50">To</label>
-            <input type="date" name="to" value="{{ to_str }}"
-                class="bg-[#0f3460] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#e94560]">
-        </div>
-        <div class="flex items-center gap-2">
-            <label class="text-sm text-white/50">Meal</label>
-            <select name="meal" class="bg-[#0f3460] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none">
-                {% for opt in ['All','Lunch','Dinner'] %}
-                <option value="{{ opt }}" {{ 'selected' if meal_filter == opt }}>{{ opt }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit" class="bg-[#e94560] hover:bg-[#c73652] px-5 py-2 rounded-xl text-sm font-semibold">Apply</button>
-    </form>
+    <div class="bg-[#16213e] rounded-2xl p-4 mb-5">
+        <form method="GET" class="flex flex-wrap gap-3 items-center">
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-white/50">From</label>
+                <input type="date" name="from" value="{{ from_str }}"
+                    class="bg-[#0f3460] border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#e94560]">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-white/50">To</label>
+                <input type="date" name="to" value="{{ to_str }}"
+                    class="bg-[#0f3460] border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#e94560]">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-white/50">Meal</label>
+                <select name="meal" class="bg-[#0f3460] border border-white/10 rounded-xl px-3 py-2 text-sm">
+                    {% for opt in ['All','Lunch','Dinner'] %}
+                    <option value="{{ opt }}" {{ 'selected' if meal_filter == opt }}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="bg-[#e94560] hover:bg-[#c73652] px-5 py-2 rounded-xl text-sm font-semibold">Apply</button>
+            <a href="{{ url_for('boss.export_range', **{'from': from_str, 'to': to_str}) }}"
+               class="ml-auto bg-green-600/20 hover:bg-green-600/40 text-green-400 border border-green-600/30 px-4 py-2 rounded-xl text-sm font-semibold">
+                ⬇ Export Excel
+            </a>
+        </form>
+    </div>
 
-    <!-- Summary cards -->
-    <div class="grid grid-cols-4 gap-4 mb-5">
+    <!-- Summary -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         <div class="bg-[#16213e] rounded-2xl p-4 text-center">
-            <div class="text-xl font-bold">{{ rows|length }}</div>
+            <div class="text-2xl font-bold">{{ days_count }}</div>
             <div class="text-xs text-white/40 mt-1">Days</div>
+        </div>
+        <div class="bg-[#16213e] rounded-2xl p-4 text-center">
+            <div class="text-2xl font-bold text-blue-400">{{ total_meals }}</div>
+            <div class="text-xs text-white/40 mt-1">Total Meals</div>
         </div>
         <div class="bg-[#16213e] rounded-2xl p-4 text-center">
             <div class="text-xl font-bold text-green-400">₹{{ "%.0f"|format(pass_cash) }}</div>
             <div class="text-xs text-white/40 mt-1">Pass Revenue</div>
-        </div>
-        <div class="bg-[#16213e] rounded-2xl p-4 text-center">
-            <div class="text-xl font-bold text-yellow-400">₹{{ "%.0f"|format(ot_cash) }}</div>
-            <div class="text-xs text-white/40 mt-1">One Time</div>
         </div>
         <div class="bg-[#16213e] rounded-2xl p-4 text-center">
             <div class="text-xl font-bold text-[#e94560]">₹{{ "%.0f"|format(total_cash) }}</div>
@@ -53,27 +61,29 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-4 mb-5">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
         <!-- Category breakdown -->
         <div class="bg-[#16213e] rounded-2xl p-5">
             <h3 class="text-sm text-white/50 uppercase tracking-wider mb-4">Category Breakdown</h3>
-            {% set icons = {'Hostel':'🏠','OneTime':'💵','StudentPass':'🎓','FacultyPass':'👨‍🏫','SpecialGuest':'⭐'} %}
             {% set total_all = cat_breakdown|sum(attribute='total') %}
-            {% for row in cat_breakdown %}
-            <div class="mb-3">
-                <div class="flex justify-between text-sm mb-1">
-                    <span>{{ icons.get(row.category,'') }} {{ row.category.replace('Pass','') }}</span>
-                    <span class="font-medium">{{ row.total }}</span>
+            {% set icons = {'Hostel':'🏠','OneTime':'💵','StudentPass':'🎓','FacultyPass':'👨‍🏫','SpecialGuest':'⭐'} %}
+            <div class="space-y-3">
+                {% for row in cat_breakdown %}
+                {% set pct = ((row.total / total_all * 100)|int) if total_all else 0 %}
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>{{ icons.get(row.category,'') }} {{ row.category.replace('Pass','') }}</span>
+                        <span class="font-medium">{{ row.total }} <span class="text-white/30 text-xs">({{ pct }}%)</span></span>
+                    </div>
+                    <div class="bg-white/10 rounded-full h-1.5">
+                        <div class="h-1.5 rounded-full bg-[#e94560]" style="width:{{ pct }}%"></div>
+                    </div>
                 </div>
-                <div class="bg-white/10 rounded-full h-1.5">
-                    <div class="h-1.5 rounded-full bg-[#e94560]"
-                         style="width: {{ ((row.total / total_all) * 100)|int if total_all else 0 }}%"></div>
-                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
 
-        <!-- Day by day table -->
+        <!-- Day table -->
         <div class="col-span-2 bg-[#16213e] rounded-2xl overflow-hidden">
             <div class="max-h-80 overflow-y-auto">
                 <table class="w-full text-sm">
@@ -81,8 +91,9 @@
                         <tr class="text-white/40 text-xs uppercase">
                             <th class="text-left px-4 py-3">Date</th>
                             <th class="text-left px-4 py-3">Day</th>
-                            <th class="text-center px-4 py-3">Meal</th>
-                            <th class="text-center px-4 py-3">Count</th>
+                            <th class="text-center px-4 py-3">Lunch</th>
+                            <th class="text-center px-4 py-3">Dinner</th>
+                            <th class="text-center px-4 py-3">Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -90,15 +101,14 @@
                         <tr class="border-b border-white/5 hover:bg-white/5">
                             <td class="px-4 py-2">{{ row.entry_date.strftime('%d %b %Y') }}</td>
                             <td class="px-4 py-2 text-white/50">{{ row.entry_date.strftime('%a') }}</td>
-                            <td class="text-center px-4 py-2">
-                                <span class="text-xs px-2 py-0.5 rounded-full
-                                    {{ 'bg-amber-500/20 text-amber-400' if row.meal_type == 'Lunch' else 'bg-blue-500/20 text-blue-400' }}">
-                                    {{ row.meal_type }}
-                                </span>
-                            </td>
-                            <td class="text-center px-4 py-2 font-medium">{{ row.total }}</td>
+                            <td class="text-center px-4 py-2">{{ row.lunch }}</td>
+                            <td class="text-center px-4 py-2">{{ row.dinner }}</td>
+                            <td class="text-center px-4 py-2 font-bold">{{ row.total }}</td>
                         </tr>
                         {% endfor %}
+                        {% if not rows %}
+                        <tr><td colspan="5" class="text-center text-white/30 py-8">No data for selected range</td></tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
