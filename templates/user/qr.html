@@ -1,17 +1,40 @@
 {% extends "base.html" %}
 {% block title %}My QR Code{% endblock %}
 {% block content %}
-<div class="max-w-sm mx-auto text-center">
-    <h1 class="text-2xl font-bold mb-2">Your QR Code</h1>
-    <p class="text-white/40 text-sm mb-6">Show this to the mess staff</p>
-    <div class="bg-white p-6 rounded-2xl inline-block mb-4">
+<div class="max-w-sm mx-auto text-center pt-4">
+    <h1 class="text-2xl font-bold mb-1">Your QR Code</h1>
+    <p class="text-white/40 text-sm mb-6">Show this to mess staff or download and keep it</p>
+
+    <div class="bg-white p-6 rounded-2xl inline-block mb-4" id="qr-container">
         {% if user.qr_code %}
-        <img src="data:image/png;base64,{{ user.qr_code }}" class="w-48 h-48">
+        <img src="data:image/png;base64,{{ user.qr_code }}" class="w-52 h-52" id="qr-img">
         {% else %}
-        <p class="text-black text-sm p-8">QR not generated yet</p>
+        <p class="text-black text-sm p-10">QR not generated yet<br>Contact admin</p>
         {% endif %}
     </div>
-    <p class="text-white/50 text-sm">ID: <span class="font-bold text-white">{{ user.id }}</span></p>
-    <p class="text-white/50 text-sm mt-1">{{ user.name }}</p>
+
+    <div class="text-white/50 text-sm mb-6">
+        <p class="font-bold text-white text-lg">{{ user.name }}</p>
+        <p>ID: {{ user.id }} • {{ user.user_type | title }}</p>
+    </div>
+
+    {% if user.qr_code %}
+    <a id="download-btn"
+       download="atmiya_pass_{{ user.id }}.png"
+       class="inline-block bg-[#e94560] hover:bg-[#c73652] px-8 py-3 rounded-xl font-semibold text-sm cursor-pointer">
+        ⬇ Download QR Code
+    </a>
+    <p class="text-white/30 text-xs mt-3">Save this image — your permanent mess pass</p>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if user.qr_code %}
+<script>
+// Set download link to the base64 image
+var btn = document.getElementById('download-btn');
+btn.href = document.getElementById('qr-img').src;
+</script>
+{% endif %}
 {% endblock %}

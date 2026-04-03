@@ -3,7 +3,16 @@
 {% block content %}
 <div class="max-w-lg mx-auto">
     <h1 class="text-2xl font-bold mb-2">Create Pass</h1>
-    <p class="text-white/40 text-sm mb-6">For: {{ user.name }} ({{ user.user_type }})</p>
+    <p class="text-white/40 text-sm mb-4">For: {{ user.name }} ({{ user.user_type }})</p>
+
+    {% if existing_active %}
+    <div class="bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 rounded-xl px-4 py-3 mb-5 text-sm">
+        ⚠️ This user already has an active <strong>{{ existing_active.pass_type }}</strong> pass
+        with <strong>{{ existing_active.total_slots - existing_active.used_slots }}</strong> slots remaining
+        (expires {{ existing_active.end_date.strftime('%d %b %Y') }}).
+        <br>Creating a new pass will <strong>expire the current one</strong>.
+    </div>
+    {% endif %}
     <form method="POST" class="bg-[#16213e] rounded-2xl p-6 space-y-4">
         <div>
             <label class="text-sm text-white/60 mb-1 block">Pass Type</label>

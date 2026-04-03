@@ -94,6 +94,50 @@ def get_today_stats():
 
 
 
+def expire_all_passes():
+    """Run expiry check on all passes - call on dashboard load"""
+    today = today_ist()
+    expired = Pass.query.filter(
+        Pass.status == 'Active'
+    ).filter(
+        db.or_(
+            Pass.end_date < today,
+            Pass.used_slots >= Pass.total_slots
+        )
+    ).all()
+    for p in expired:
+        p.status = 'Expired'
+    if expired:
+        db.session.commit()
+
+def get_low_slot_users():
+    """Users with active pass <= 5 slots remaining OR <= 5 days to expiry"""
+    today = today_ist()
+    from datetime import timedelta
+    soon = today + timedelta(days=5)
+    passes = Pass.query.filter(
+        Pass.status == 'Active'
+    ).filter(
+        db.or_(
+            (Pass.total_slots - Pass.used_slots) <= 5,
+            Pass.end_date <= soon
+        )
+    ).all()
+    result = []
+    for p in passes:
+        user = User.query.get(p.user_id)
+        if user:
+            remaining = p.total_slots - p.used_slots
+            days_left = (p.end_date - today).days
+            result.append({
+                'user': user,
+                'pass': p,
+                'remaining': remaining,
+                'days_left': days_left
+            })
+    result.sort(key=lambda x: (x['remaining'], x['days_left']))
+    return result
+
 @staff_bp.route('/scan')
 @staff_required
 def scan():
@@ -147,8 +191,10 @@ def api_user(user_id):
 @staff_bp.route('/dashboard')
 @staff_required
 def dashboard():
+    expire_all_passes()  # run expiry check on every dashboard load
     data = get_today_stats()
-    return render_template('staff/dashboard.html', data=data, current_user=current_user)
+    low_users = get_low_slot_users()
+    return render_template('staff/dashboard.html', data=data, low_users=low_users, current_user=current_user)
 
 @staff_bp.route('/search', methods=['GET', 'POST'])
 @staff_required
@@ -383,20 +429,26 @@ def add_pass(user_id):
     user = User.query.get_or_404(user_id)
     settings = SystemSettings.query.first()
 
+    # Check for existing active pass
+    existing_active = Pass.query.filter_by(user_id=user_id, status='Active').first()
+
     if request.method == 'POST':
-        pass_type = request.form['pass_type']
+        pass_type  = request.form['pass_type']
         start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date()
-        end_date = start_date.replace(day=start_date.day) 
         from datetime import timedelta
-        end_date = start_date + timedelta(days=40)
+        end_date   = start_date + timedelta(days=40)
 
         total_slots = 60 if pass_type == 'Both' else 30
 
-        # Calculate amount
+        # Calculate amount correctly
         if user.user_type == 'student':
             amount = float(settings.student_both) if pass_type == 'Both' else float(settings.student_price)
         else:
             amount = float(settings.faculty_both) if pass_type == 'Both' else float(settings.faculty_price)
+
+        # Expire any existing active pass before creating new one
+        for old_pass in Pass.query.filter_by(user_id=user_id, status='Active').all():
+            old_pass.status = 'Expired'
 
         new_pass = Pass(
             user_id=user_id,
